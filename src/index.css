@@ -1,0 +1,74 @@
+@import "tailwindcss";
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+
+  body {
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+  }
+}
+
+/* Hand-drawn mode styles */
+.mode-sketch {
+  --bg: #f5f0e8;
+  --text: #3d2b1f;
+  --accent: #c17f2a;
+  --panel-bg: #fdf8f0;
+  --border: #c8b89a;
+  font-family: 'Caveat', cursive;
+}
+
+/* Circuit mode styles */
+.mode-circuit {
+  --bg: #0d1f0d;
+  --text: #b8d4a8;
+  --accent: #c87533;
+  --panel-bg: #111f11;
+  --border: #2a4a2a;
+  font-family: 'Share Tech Mono', monospace;
+}
+
+/* Scrollbar styling */
+.panel-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+.panel-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.panel-scroll::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+
+/* LED glow effect */
+@keyframes ledPulse {
+  0%, 100% { filter: drop-shadow(0 0 4px #c87533) drop-shadow(0 0 8px #c87533); }
+  50% { filter: drop-shadow(0 0 8px #e8a050) drop-shadow(0 0 16px #e8a050); }
+}
+
+.led-glow {
+  animation: ledPulse 2s ease-in-out infinite;
+}
+
+/* Animated trace */
+@keyframes traceDash {
+  to { stroke-dashoffset: -200; }
+}
+
+.circuit-trace {
+  stroke-dasharray: 8 4;
+  animation: traceDash 3s linear infinite;
+}
+
+/* Country hover */
+.country-path {
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.country-path:hover {
+  opacity: 0.8;
+}
