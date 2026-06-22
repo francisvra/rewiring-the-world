@@ -1,7 +1,9 @@
-export default function Controls({ mode, setMode, metric, setMetric }) {
+import { LAYERS, LAYER_ORDER } from '../data/energyModel'
+
+export default function Controls({ mode, setMode, layerKey, setLayerKey }) {
   const btnBase = `
     px-3 py-1.5 text-sm rounded cursor-pointer border transition-all duration-200
-    focus:outline-none
+    focus:outline-none whitespace-nowrap
   `
 
   const activeStyle = {
@@ -17,7 +19,7 @@ export default function Controls({ mode, setMode, metric, setMetric }) {
 
   return (
     <div
-      className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 flex gap-4 items-center px-5 py-3 rounded-xl"
+      className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 flex gap-4 items-center px-5 py-3 rounded-xl max-w-[95vw] flex-wrap justify-center"
       style={{
         background: 'var(--panel-bg)',
         border: '1px solid var(--border)',
@@ -26,23 +28,20 @@ export default function Controls({ mode, setMode, metric, setMetric }) {
           : '2px 3px 8px rgba(0,0,0,0.15)',
       }}
     >
-      {/* Metric toggle */}
-      <div className="flex gap-1">
-        <span className="text-xs opacity-60 mr-1 self-center">Metric:</span>
-        <button
-          className={btnBase}
-          style={metric === 'un35' ? activeStyle : inactiveStyle}
-          onClick={() => setMetric('un35')}
-        >
-          UN 35×35
-        </button>
-        <button
-          className={btnBase}
-          style={metric === 'productive' ? activeStyle : inactiveStyle}
-          onClick={() => setMetric('productive')}
-        >
-          Productive Energy
-        </button>
+      {/* Layer selector */}
+      <div className="flex gap-1 items-center flex-wrap justify-center">
+        <span className="text-xs opacity-60 mr-1 self-center">Layer:</span>
+        {LAYER_ORDER.map((key) => (
+          <button
+            key={key}
+            className={btnBase}
+            style={layerKey === key ? activeStyle : inactiveStyle}
+            onClick={() => setLayerKey(key)}
+            title={LAYERS[key].blurb}
+          >
+            {LAYERS[key].label}
+          </button>
+        ))}
       </div>
 
       <div

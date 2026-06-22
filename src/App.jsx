@@ -3,19 +3,26 @@ import { AnimatePresence } from 'framer-motion'
 import WorldMap from './components/WorldMap'
 import CountryPanel from './components/CountryPanel'
 import Controls from './components/Controls'
+import { useEnergyData } from './hooks/useEnergyData'
+import { LAYERS } from './data/energyModel'
 
 export default function App() {
   const [mode, setMode] = useState('sketch') // 'sketch' | 'circuit'
-  const [metric, setMetric] = useState('un35') // 'un35' | 'productive'
-  const [selectedCountry, setSelectedCountry] = useState(null)
+  const [layerKey, setLayerKey] = useState('electrification')
+  const [selectedId, setSelectedId] = useState(null)
 
-  const handleCountryClick = useCallback((country) => {
-    setSelectedCountry(country)
+  const { data, status } = useEnergyData()
+  const layer = LAYERS[layerKey]
+
+  const handleCountryClick = useCallback((id) => {
+    setSelectedId(id)
   }, [])
 
   const handleClose = useCallback(() => {
-    setSelectedCountry(null)
+    setSelectedId(null)
   }, [])
+
+  const selectedRecord = selectedId != null && data ? data[selectedId] : null
 
   return (
     <div
@@ -44,39 +51,47 @@ export default function App() {
       )}
 
       {/* Title */}
-      <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10 text-center pointer-events-none">
+      <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10 text-center pointer-events-none px-4">
         <h1
           className="text-3xl font-bold tracking-wide"
           style={{ color: 'var(--accent)' }}
         >
           ⚡ Rewiring the World
         </h1>
-        <p className="text-sm mt-1 opacity-70">
-          {metric === 'un35'
-            ? 'UN 35×35: Electricity as % of final energy (target 35% by 2035)'
-            : 'Productive Energy: % of useful work delivered electrically'}
+        <p className="text-sm mt-1 opacity-70 max-w-xl mx-auto">
+          {layer.blurb}
+        </p>
+        <p className="text-xs mt-1 opacity-40">
+          {status === 'loading' && 'Loading energy data…'}
+          {status === 'live' && 'Live data: Our World in Data'}
+          {status === 'fallback' && 'Offline — showing approximate estimates'}
         </p>
       </div>
 
       {/* Controls */}
-      <Controls mode={mode} setMode={setMode} metric={metric} setMetric={setMetric} />
+      <Controls
+        mode={mode}
+        setMode={setMode}
+        layerKey={layerKey}
+        setLayerKey={setLayerKey}
+      />
 
       {/* Map */}
       <WorldMap
         mode={mode}
-        metric={metric}
+        layer={layer}
+        data={data}
         onCountryClick={handleCountryClick}
-        selectedCountryId={selectedCountry?.id}
+        selectedId={selectedId}
       />
 
       {/* Country panel */}
       <AnimatePresence>
-        {selectedCountry && (
+        {selectedRecord && (
           <CountryPanel
-            key={selectedCountry.id}
-            country={selectedCountry}
+            key={selectedRecord.id}
+            record={selectedRecord}
             mode={mode}
-            metric={metric}
             onClose={handleClose}
           />
         )}
