@@ -1,5 +1,46 @@
 import { motion } from 'framer-motion'
 import { rewiringOrgs, TARGET_35x35 } from '../data/electrification'
+import MachineFleet from './MachineFleet'
+
+// One machine: sales share (leading) over stock share (lagging). The bar shows
+// installed stock filled solid, with sales share marked ahead of it — the gap.
+function MachineRow({ machine, mode }) {
+  const sales = machine.salesShare ?? 0
+  const stock = machine.stockShare ?? 0
+  return (
+    <div>
+      <div className="flex justify-between text-xs mb-1">
+        <span className="opacity-80">
+          {machine.icon} {machine.label}{!machine.real && ' *'}
+        </span>
+        <span className="opacity-50">{machine.replaces}</span>
+      </div>
+      <div
+        className="relative h-2.5 rounded-full overflow-hidden"
+        style={{ background: mode === 'circuit' ? '#1a3a1a' : '#e8e0d5' }}
+      >
+        {/* sales share — lighter, the leading edge */}
+        <div
+          className="absolute inset-y-0 left-0 rounded-full transition-all duration-700"
+          style={{ width: `${Math.min(sales, 100)}%`, background: 'var(--accent)', opacity: 0.4 }}
+        />
+        {/* stock share — solid, what's installed */}
+        <div
+          className="absolute inset-y-0 left-0 rounded-full transition-all duration-700"
+          style={{
+            width: `${Math.min(stock, 100)}%`,
+            background: 'var(--accent)',
+            boxShadow: mode === 'circuit' ? '0 0 6px var(--accent)' : undefined,
+          }}
+        />
+      </div>
+      <div className="flex justify-between text-[10px] mt-0.5 opacity-60">
+        <span>stock {stock.toFixed(0)}%</span>
+        <span>sales {sales.toFixed(0)}%</span>
+      </div>
+    </div>
+  )
+}
 
 function StatBar({ label, value, domain, mode, estimated }) {
   if (value == null) return null
@@ -104,7 +145,40 @@ export default function CountryPanel({ record, mode, onClose }) {
           </div>
         )}
 
-        {/* HEADLINE: combined productive-electrification score */}
+        {/* HERO: machines to replace */}
+        {record.machines && (
+          <div>
+            <h3 className="text-sm font-semibold uppercase tracking-wider opacity-60 mb-1">
+              Machines to Replace
+            </h3>
+            <p className="text-xs opacity-50 mb-2">
+              Progress = swapping each fossil machine for an electric one
+            </p>
+            <div className="flex items-end gap-2 mb-1">
+              <span className="text-5xl font-bold" style={{ color: 'var(--accent)' }}>
+                {(record.machineElectricShare ?? 0).toFixed(0)}
+              </span>
+              <span className="text-xl mb-2 opacity-70">% electric</span>
+              <span className="text-sm mb-2.5 ml-auto opacity-60">
+                {(record.machinesToReplace ?? 0).toFixed(0)}% to replace
+              </span>
+            </div>
+
+            <MachineFleet machines={record.machines} mode={mode} />
+
+            <div className="space-y-2.5 mt-3">
+              {record.machines.map((m) => (
+                <MachineRow key={m.key} machine={m} mode={mode} />
+              ))}
+            </div>
+            <p className="text-[10px] opacity-50 mt-2">
+              Bar: solid = installed stock, faded = new-sales share (the leading edge).
+              🚗 cars use real OWID EV sales data; * = modelled estimate.
+            </p>
+          </div>
+        )}
+
+        {/* Combined productive-electrification score */}
         <div>
           <h3 className="text-sm font-semibold uppercase tracking-wider opacity-60 mb-1">
             Productive Electrification

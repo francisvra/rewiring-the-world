@@ -2,11 +2,20 @@ import { useEffect, useState } from 'react'
 import { csvParse } from 'd3'
 import { numericToAlpha3 } from '../data/isoNumericToAlpha3'
 import { electrificationData } from '../data/electrification'
-import { estimateSectors, combinedScore } from '../data/energyModel'
+import {
+  estimateSectors,
+  combinedScore,
+  estimateMachines,
+  estimateEvStock,
+  machineElectricShare,
+} from '../data/energyModel'
 
 // Our World in Data energy dataset (single CSV, all countries, all years).
 // jsDelivr serves it gzipped + CDN-cached.
 const OWID_URL = 'https://cdn.jsdelivr.net/gh/owid/energy-data@master/owid-energy-data.csv'
+
+// OWID EV sales share (% of new cars sold that are electric) — full history.
+const EV_URL = 'https://ourworldindata.org/grapher/electric-car-sales-share.csv?csvType=full&useColumnShortNames=true'
 
 const COLS = [
   'electricity_share_energy',
@@ -26,6 +35,23 @@ function num(v) {
   if (v == null || v === '') return null
   const n = +v
   return Number.isFinite(n) ? n : null
+}
+
+// Attach machine roster + electric-machine index to a record, given optional
+// real EV data { salesShare, stockShare }.
+function attachMachines(record, ev) {
+  const evSales = ev ? ev.salesShare : null
+  const evStock = ev ? ev.stockShare : null
+  const machines = estimateMachines(record.electrification, evSales, evStock)
+  const idx = machineElectricShare(machines)
+  return {
+    ...record,
+    evSalesShare: evSales,
+    evStockShare: evStock,
+    machines,
+    machineElectricShare: idx,
+    machinesToReplace: idx == null ? null : Math.max(100 - idx, 0),
+  }
 }
 
 function buildRecord(numericId, name, fields) {
@@ -52,6 +78,27 @@ function buildRecord(numericId, name, fields) {
   }
 }
 
+// Parse the EV sales-share CSV into { numericId: { salesShare, stockShare } }.
+function parseEvData(text) {
+  const rows = csvParse(text)
+  const byCode = {} // alpha3 -> [{year, val}]
+  for (const row of rows) {
+    const a3 = row.code
+    if (!a3 || !(a3 in alpha3ToNumeric)) continue
+    const val = num(row.ev_sales_share)
+    if (val == null) continue
+    ;(byCode[a3] ||= []).push({ year: +row.year, val })
+  }
+  const out = {}
+  for (const [a3, series] of Object.entries(byCode)) {
+    series.sort((a, b) => a.year - b.year)
+    const salesShare = series[series.length - 1].val
+    const stockShare = estimateEvStock(series.map((s) => s.val), salesShare)
+    out[alpha3ToNumeric[a3]] = { salesShare, stockShare }
+  }
+  return out
+}
+
 // Fallback record from the bundled approximate dataset (used if fetch fails).
 function fallbackRecord(numericId) {
   const base = electrificationData[numericId]
@@ -72,11 +119,11 @@ function fallbackRecord(numericId) {
   }
 }
 
-function buildFallback() {
+function buildFallback(evData) {
   const out = {}
   for (const id of Object.keys(electrificationData)) {
     const rec = fallbackRecord(+id)
-    if (rec) out[+id] = rec
+    if (rec) out[+id] = attachMachines(rec, evData && evData[+id])
   }
   return out
 }
@@ -87,14 +134,22 @@ export function useEnergyData() {
 
   useEffect(() => {
     let cancelled = false
-    fetch(OWID_URL)
-      .then((r) => {
+
+    const fetchText = (url) =>
+      fetch(url).then((r) => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`)
         return r.text()
       })
-      .then((text) => {
+
+    // EV data is a bonus layer — if it fails, we still build with modelled vehicles.
+    Promise.all([
+      fetchText(OWID_URL),
+      fetchText(EV_URL).catch(() => null),
+    ])
+      .then(([energyText, evText]) => {
         if (cancelled) return
-        const rows = csvParse(text)
+        const evData = evText ? parseEvData(evText) : {}
+        const rows = csvParse(energyText)
         // Keep the latest year that has an electrification value, per alpha-3.
         const latest = {} // alpha3 -> row
         for (const row of rows) {
@@ -112,13 +167,13 @@ export function useEnergyData() {
         const out = {}
         for (const [a3, fields] of Object.entries(latest)) {
           const numericId = alpha3ToNumeric[a3]
-          out[numericId] = buildRecord(numericId, fields.country, fields)
+          out[numericId] = attachMachines(buildRecord(numericId, fields.country, fields), evData[numericId])
         }
         // Fill any countries missing from OWID with fallback estimates.
         for (const id of Object.keys(electrificationData)) {
           if (!out[+id]) {
             const fb = fallbackRecord(+id)
-            if (fb) out[+id] = fb
+            if (fb) out[+id] = attachMachines(fb, evData[+id])
           }
         }
         setData(out)

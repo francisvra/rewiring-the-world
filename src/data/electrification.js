@@ -203,14 +203,5 @@ export const rewiringOrgs = {
   },
 };
 
-// Get electrification value adjusted for metric
-export function getMetricValue(countryId, metric) {
-  const entry = electrificationData[countryId];
-  if (!entry) return null;
-  const base = entry.value;
-  // Productive Energy: multiply by ~2.5x efficiency factor
-  return metric === 'productive' ? Math.min(base * 2.5, 100) : base;
-}
-
 // 35x35 target: 35% electricity share of final energy by 2035
 export const TARGET_35x35 = 35;
